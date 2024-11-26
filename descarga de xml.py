@@ -4,13 +4,12 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from PIL import Image
 from io import BytesIO
-
-# URL del archivo XML
+import sqlalchemy
+from sqlalchemy.engine import URL
 
 def transformXml(url):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"#,
-        #"Referer": "https://example.com"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
     }
     response = requests.get(url, headers=headers)
 
@@ -50,6 +49,7 @@ with open(archivo_urls, "r") as file:
     urls = [line.strip() for line in file.readlines()]
 
 print(urls)
+
 # Crear una lista para almacenar los DataFrames
 dataframes = []
 
@@ -75,7 +75,7 @@ def clean_html(text):
 df['cuerpo'] = df['cuerpo'].apply(clean_html)
 df['titulo'] = df['titulo'].apply(clean_html)
 
-# Elimina 'https://www.' de todas las filas de la columna 'link'
+# Elimina 'https://www.' de todas las filas de la columna 'link', para consistencia con esquema de datos
 df['canonica'] = df['canonica'].str.replace('https://www.', '', regex=False)
 
 # Función para obtener las características de una imagen desde una URL
@@ -117,34 +117,36 @@ df['imagen_tamano_kb'] = pd.to_numeric(df['imagen_tamano_kb'])
 
 ### Conexión a SQL
 # Leo el archivo de configuración
-#config = configparser.ConfigParser()
-#config.read('config.ini')
+config = configparser.ConfigParser()
+config.read('config.ini')
 
-#print(config)
+print(config)
 
 # Construyo la cadena de conexión
-#connection_string = (
-#    f"DRIVER={{{config['DATABASE']['DRIVER']}}};"
-#    f"SERVER={config['DATABASE']['SERVER']};"
-#    f"DATABASE={config['DATABASE']['DATABASE']};"
-#    f"UID={config['DATABASE']['UID']};"
-#    f"PWD={config['DATABASE']['PWD']}"
-#)
+connection_string = (
+    f"DRIVER={{{config['DATABASE']['DRIVER']}}};"
+    f"SERVER={config['DATABASE']['SERVER']};"
+    f"DATABASE={config['DATABASE']['DATABASE']};"
+    f"UID={config['DATABASE']['UID']};"
+    f"PWD={config['DATABASE']['PWD']}"
+)
 
-#connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
-#engine = sqlalchemy.create_engine(connection_url,fast_executemany=True)
-#engine.connect()
-#print("hasta sql")
+connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+engine = sqlalchemy.create_engine(connection_url,fast_executemany=True)
+engine.connect()
+print("hasta sql")
 
 #df_sql = pd.read_sql(f"SELECT * FROM body_articulos_vincolo_dim", con=engine.connect())
-df_sql = pd.read_csv('c:\\Users\\ctello\\OneDrive - El Cronista\\Documentos\\Python\\Scripts Cronista\\Análisis\\241122 - Descarga de archivos xml\\prueba.csv')
-df['order'] = "segunda"
-df_sql['order'] = "primera"
+#df_sql = pd.read_csv('c:\\Users\\ctello\\OneDrive - El Cronista\\Documentos\\Python\\Scripts Cronista\\Análisis\\241122 - Descarga de archivos xml\\prueba.csv')
+
+#df['order'] = "segunda"
+#df_sql['order'] = "primera"
+df_sql = []
 
 df_final = pd.concat([df,df_sql]).reset_index(drop=True)
 
-df_final = df_final.sort_values('order')
-df_final = df_final.drop_duplicates(subset=['canonica'], keep="first")
+#df_final = df_final.sort_values('order')
+#df_final = df_final.drop_duplicates(subset=['canonica'], keep="first")
 
 cols = ['fecha_publicacion','canonica','titulo','copete','cuerpo','imagen_url','imagen_ancho','imagen_alto','imagen_modo','imagen_tamano_kb']
 df_final = df_final[cols]
@@ -160,7 +162,8 @@ type_dict = {'fecha_publicacion' : 'datetime64[ns]',
              'imagen_modo' : 'object',
              'imagen_tamano_kb' : 'int'
 }
+
 df_final = df_final.astype(type_dict)
 
-#df.to_sql('body_articulos_vincolo_dim',con=engine.connect(), if_exists='append', index= False)
-df_final.to_csv('c:\\Users\\ctello\\OneDrive - El Cronista\\Documentos\\Python\\Scripts Cronista\\Análisis\\241122 - Descarga de archivos xml\\prueba2.csv', index=False, encoding='utf-8')
+df.to_sql('body_articulos_vincolo_dim',con=engine.connect(), if_exists='append', index= False)
+#df_final.to_csv('c:\\Users\\ctello\\OneDrive - El Cronista\\Documentos\\Python\\Scripts Cronista\\Análisis\\241122 - Descarga de archivos xml\\prueba2.csv', index=False, encoding='utf-8')
